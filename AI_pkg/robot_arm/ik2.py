@@ -122,6 +122,7 @@ class pybulletIK:
         p.resetBasePositionAndOrientation(
             self.camera_marker, camera_world_position, link_world_orientation
         )
+        return camera_world_position, link_world_orientation
 
     def update_target_marker(self, target_position):
         """更新目标物体（绿色方块）的世界坐标"""
@@ -161,28 +162,38 @@ class pybulletIK:
         return relative_position
 
     def pybullet_move(self, target_camera_coords, current_joint_angles):
-        # 确保目标在相机的后方并在机械手臂的可达范围内
-        base_link_state = p.getLinkState(self.robot_id, self.camera_link_index)
-        base_link_position = np.array(base_link_state[0])  # 位置
-        base_link_orientation = base_link_state[1]  # 方向
-        rotation_matrix = np.array(
-            p.getMatrixFromQuaternion(base_link_orientation)
+        # 更新相机标记的位置，并获取相机的世界坐标和方向
+        camera_world_position, camera_world_orientation = self.update_camera_marker()
+        # 获取基座的世界坐标和方向
+        base_position, base_orientation = p.getBasePositionAndOrientation(self.robot_id)
+        base_position = np.array(base_position)
+        base_rotation_matrix = np.array(
+            p.getMatrixFromQuaternion(base_orientation)
         ).reshape(3, 3)
-        target_camera_coords = np.array(target_camera_coords)
-        target_world_coords = target_camera_coords + base_link_position
-        target_camera_coords[0] = -abs(target_camera_coords[0])  # 反转 X 轴
 
-        # 将目标从相机坐标系转换到基座坐标系
-        target_base_coords = target_world_coords
+        # 将目标从相机坐标系转换到世界坐标系
+        rotation_matrix = np.array(
+            p.getMatrixFromQuaternion(camera_world_orientation)
+        ).reshape(3, 3)
+        world_position = (
+            np.dot(rotation_matrix, target_camera_coords) + camera_world_position
+        )
+        vector_base_to_camera = camera_world_position - base_position
+        vector_camera_to_target = target_camera_coords
+        # 将世界坐标系下的物体位置转换为基座坐标系
+        world_position = camera_world_position + vector_camera_to_target
+        target_base_coords = np.dot(
+            base_rotation_matrix.T, world_position - base_position
+        )
 
         # 更新目标物体位置
-        self.update_target_marker(target_base_coords)
+        self.update_target_marker(world_position)
 
         # 执行逆运动学计算
         joint_angles = p.calculateInverseKinematics(
             self.robot_id,
             6,  # 末端执行器的链接索引
-            target_base_coords,
+            world_position,
             lowerLimits=[-np.pi] * self.num_joints,
             upperLimits=[np.pi] * self.num_joints,
             jointRanges=[2 * np.pi] * self.num_joints,

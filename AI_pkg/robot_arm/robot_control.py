@@ -25,14 +25,14 @@ class RobotArmControl:
         self.ik_solver = pybulletIK(self.current_angle)
 
         # 连接到 ROSBridge
-        # self.rosbridge_client = roslibpy.Ros(host="192.168.0.207", port=9090)
-        # self.rosbridge_client.run()
+        self.rosbridge_client = roslibpy.Ros(host="192.168.0.207", port=9090)
+        self.rosbridge_client.run()
 
-        # self.roslib_publisher = roslibpy.Topic(
-        #     self.rosbridge_client,
-        #     DeviceDataTypeEnum.robot_arm,
-        #     "trajectory_msgs/JointTrajectoryPoint",
-        # )
+        self.roslib_publisher = roslibpy.Topic(
+            self.rosbridge_client,
+            DeviceDataTypeEnum.robot_arm,
+            "trajectory_msgs/JointTrajectoryPoint",
+        )
 
     def degree_to_radians(self, data):
         return list(np.radians(data))
@@ -58,18 +58,18 @@ class RobotArmControl:
             self.node.publish_arm(radians)
 
             # 创建 JointTrajectoryPoint 消息
-            # message = roslibpy.Message(
-            #     {
-            #         "positions": radians,
-            #         "velocities": [],  # 可以为空，或者填入速度值
-            #         "accelerations": [],  # 可以为空，或者填入加速度值
-            #         "effort": [],  # 可以为空，或者填入力矩值
-            #         "time_from_start": {"secs": 0, "nsecs": 0},  # 可以根据需要设置
-            #     }
-            # )
+            message = roslibpy.Message(
+                {
+                    "positions": radians,
+                    "velocities": [],  # 可以为空，或者填入速度值
+                    "accelerations": [],  # 可以为空，或者填入加速度值
+                    "effort": [],  # 可以为空，或者填入力矩值
+                    "time_from_start": {"secs": 0, "nsecs": 0},  # 可以根据需要设置
+                }
+            )
 
             # 发布 JointTrajectoryPoint 消息到 ROSBridge
-            # self.roslib_publisher.publish(message)
+            self.roslib_publisher.publish(message)
 
             # time.sleep(1)
             # self.current_angle = radians  # 更新当前角度
