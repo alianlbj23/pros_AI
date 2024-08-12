@@ -5,7 +5,7 @@ import time
 from robot_arm.ik2 import pybulletIK
 import cv2
 
-import roslibpy  # 导入 roslibpy 库
+# import roslibpy  # 导入 roslibpy 库
 from ros_receive_and_data_processing.car_models import *
 
 
@@ -58,18 +58,18 @@ class RobotArmControl:
             self.node.publish_arm(radians)
 
             # 创建 JointTrajectoryPoint 消息
-            message = roslibpy.Message(
-                {
-                    "positions": radians,
-                    "velocities": [],  # 可以为空，或者填入速度值
-                    "accelerations": [],  # 可以为空，或者填入加速度值
-                    "effort": [],  # 可以为空，或者填入力矩值
-                    "time_from_start": {"secs": 0, "nsecs": 0},  # 可以根据需要设置
-                }
-            )
+            # message = roslibpy.Message(
+            #     {
+            #         "positions": radians,
+            #         "velocities": [],  # 可以为空，或者填入速度值
+            #         "accelerations": [],  # 可以为空，或者填入加速度值
+            #         "effort": [],  # 可以为空，或者填入力矩值
+            #         "time_from_start": {"secs": 0, "nsecs": 0},  # 可以根据需要设置
+            #     }
+            # )
 
             # 发布 JointTrajectoryPoint 消息到 ROSBridge
-            self.roslib_publisher.publish(message)
+            # self.roslib_publisher.publish(message)
 
             # time.sleep(1)
             # self.current_angle = radians  # 更新当前角度
