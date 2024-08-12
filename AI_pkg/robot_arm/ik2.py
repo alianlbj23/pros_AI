@@ -9,12 +9,6 @@ import time
 class pybulletIK:
     def __init__(self, first_angle):
         self.angle = first_angle
-        # 计算基座位置的偏移量
-        # base_position_offset = (
-        #     -2.989375374043843,
-        #     -1.1164329046590977,
-        #     -0.031849440895134605,
-        # )
 
         # 初始化 PyBullet 仿真环境
         p.connect(p.GUI)  # 使用 GUI 模式，这样你可以看到仿真界面
@@ -43,18 +37,23 @@ class pybulletIK:
         # 设置初始关节角度
         self.set_joint_angles(first_angle)
 
-        # 初始化相机（固定在第1轴的前方1公分）
-        self.camera_link_index = 0  # 假设第1轴的索引为0
-        self.camera_position = [0, 0, 0]  # 相机在第1轴正前方2公分
+        # 初始化相机（固定在第1轴的前方2厘米）
+        self.camera_link_index = 2  # 假设第1轴的索引为2
+        self.camera_offset = [0.12, 0, -0.1]  # 相机在该轴前方的偏移量
         self.camera_orientation = [0, 0, 0, 1]  # 保持相机方向不变（四元数）
 
-        # 将红色方块作为深度相机的表示
+        # 将红色小球作为深度相机的表示
         visual_shape_id = p.createVisualShape(
-            shapeType=p.GEOM_BOX, rgbaColor=[1, 0, 0, 1], halfExtents=[0.02, 0.02, 0.02]
+            shapeType=p.GEOM_SPHERE,
+            rgbaColor=[1, 0, 0, 1],
+            radius=0.02,  # 设置一个非常小的半径来表示点
         )
         self.camera_marker = p.createMultiBody(
-            baseVisualShapeIndex=visual_shape_id, basePosition=self.camera_position
+            baseVisualShapeIndex=visual_shape_id,
+            basePosition=[0, 0, 0],
+            baseOrientation=self.camera_orientation,
         )
+
         p.setCollisionFilterPair(
             self.robot_id, self.camera_marker, -1, -1, 0
         )  # 停止碰撞
@@ -100,17 +99,28 @@ class pybulletIK:
         while True:
             p.stepSimulation()
             # 更新相机标记位置
+            self.update_camera_marker()
             time.sleep(1 / 240)
             p.setTimeStep(1 / 240)
             p.setGravity(0, 0, -9.81)
 
     def update_camera_marker(self):
-        """更新深度相机红色方块的位置"""
+        """更新深度相机红点的位置"""
         link_state = p.getLinkState(self.robot_id, self.camera_link_index)
-        link_world_position = link_state[0]
+        link_world_position = np.array(link_state[0])
         link_world_orientation = link_state[1]
+
+        # 计算相机的世界坐标位置
+        rotation_matrix = np.array(
+            p.getMatrixFromQuaternion(link_world_orientation)
+        ).reshape(3, 3)
+        camera_world_position = link_world_position + np.dot(
+            rotation_matrix, self.camera_offset
+        )
+
+        # 更新红点位置
         p.resetBasePositionAndOrientation(
-            self.camera_marker, link_world_position, link_world_orientation
+            self.camera_marker, camera_world_position, link_world_orientation
         )
 
     def update_target_marker(self, target_position):
@@ -159,22 +169,11 @@ class pybulletIK:
             p.getMatrixFromQuaternion(base_link_orientation)
         ).reshape(3, 3)
         target_camera_coords = np.array(target_camera_coords)
-        # target_world_coords = (
-        #     np.dot(rotation_matrix, target_camera_coords) + base_link_position
-        # )
         target_world_coords = target_camera_coords + base_link_position
         target_camera_coords[0] = -abs(target_camera_coords[0])  # 反转 X 轴
-        # target_camera_coords[0] = -abs(target_camera_coords[0])
-        # target_camera_coords[2] = -abs(target_camera_coords[2])  # 反转 Y 轴
 
         # 将目标从相机坐标系转换到基座坐标系
-        # target_base_coords = self.transform_camera_to_base(target_camera_coords)
         target_base_coords = target_world_coords
-        # tmp = target_base_coords[0]
-        # target_base_coords[0] = target_base_coords[1]
-        # target_base_coords[1] = tmp
-        # target_base_coords[2] = 0.1
-        # print(target_base_coords)
 
         # 更新目标物体位置
         self.update_target_marker(target_base_coords)

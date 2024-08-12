@@ -5,7 +5,7 @@ import time
 from robot_arm.ik2 import pybulletIK
 import cv2
 
-# import roslibpy  # 导入 roslibpy 库
+import roslibpy  # 导入 roslibpy 库
 from ros_receive_and_data_processing.car_models import *
 
 
@@ -28,7 +28,6 @@ class RobotArmControl:
         # self.rosbridge_client = roslibpy.Ros(host="192.168.0.207", port=9090)
         # self.rosbridge_client.run()
 
-        # 创建 ROSLib 发布者
         # self.roslib_publisher = roslibpy.Topic(
         #     self.rosbridge_client,
         #     DeviceDataTypeEnum.robot_arm,
