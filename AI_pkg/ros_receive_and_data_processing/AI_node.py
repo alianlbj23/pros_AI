@@ -30,7 +30,6 @@ from PIL import Image
 import yaml
 import os
 from tf2_ros import StaticTransformBroadcaster
-import roslibpy
 
 
 class AI_node(Node):
@@ -68,6 +67,7 @@ class AI_node(Node):
         self.real_car_data["arm_tartget_position"] = None
         # 物體在相機的哪個方向
         self.real_car_data["object_direction"] = None
+        self.real_car_data["object_depth"] = None
         """
         確定以下資料都有收到 才會在 check_and_get_lastest_data() 更新最新資料
         amcl 追蹤車體目前位置
@@ -127,6 +127,12 @@ class AI_node(Node):
             String,
             "/object_direction",
             self.subscriber_object_direction_callback,
+            10,
+        )
+        self.subscriber_object_depth = self.create_subscription(
+            String,
+            "/object_depth",
+            self.subscriber_object_depth_callback,
             10,
         )
         """
@@ -210,6 +216,13 @@ class AI_node(Node):
 
     def get_object_direction(self):
         return self.real_car_data['object_direction']
+
+    def get_object_depth(self):
+        try:
+            data = float(self.real_car_data['object_depth'])
+        except:
+            data = None
+        return data
 
     """
     取得經過data_transform處理後的最新資料
@@ -479,6 +492,9 @@ class AI_node(Node):
 
     def subscriber_object_direction_callback(self, msg):
         self.real_car_data['object_direction'] = msg.data
+
+    def subscriber_object_depth_callback(self, msg):
+        self.real_car_data['object_depth'] = msg.data
 
 
 
