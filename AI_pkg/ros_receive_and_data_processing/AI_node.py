@@ -66,6 +66,8 @@ class AI_node(Node):
 
         # 目標座標
         self.real_car_data["arm_tartget_position"] = None
+        # 物體在相機的哪個方向
+        self.real_car_data["object_direction"] = None
         """
         確定以下資料都有收到 才會在 check_and_get_lastest_data() 更新最新資料
         amcl 追蹤車體目前位置
@@ -77,15 +79,6 @@ class AI_node(Node):
             "goal": False,
             "lidar": False,
         }
-
-        # ROSBridge client to connect to Jetson
-        self.rosbridge_client = roslibpy.Ros(host="192.168.0.207", port=9090)
-        self.rosbridge_client.run()
-        self.coordinate_topic = roslibpy.Topic(
-            self.rosbridge_client,
-            DeviceDataTypeEnum.robot_arm,
-            "trajectory_msgs/JointTrajectoryPoint",
-        )
 
         """
         接收目標, 車體目前位置, 輪子轉速, lidar的距離和vector
@@ -129,6 +122,12 @@ class AI_node(Node):
             "/object_coordinates",
             self.subscriber_target_angle_callback,
             10,  # 替换为实际的主题名称
+        )
+        self.subscriber_object_direction = self.create_subscription(
+            String,
+            "/object_direction",
+            self.subscriber_object_direction_callback,
+            10,
         )
         """
         publish map position in random,
@@ -209,6 +208,9 @@ class AI_node(Node):
     def get_target_pos(self):
         return self.real_car_data["arm_tartget_position"]
 
+    def get_object_direction(self):
+        return self.real_car_data['object_direction']
+
     """
     取得經過data_transform處理後的最新資料
 
@@ -253,16 +255,16 @@ class AI_node(Node):
         self.publish_control_signal(velocities_front, self.publisher)
         self.publish_control_signal(velocities_back, self.publisher_forward)
 
-    def publish_arm_jetson(self, joint_pos):
-        roslibpy_joint_msg = roslibpy.Message(
-            {
-                "positions": [
-                    float(angle) for angle in joint_pos[:5]
-                ],  # 只取前5个关节角度
-                "time_from_start": {"secs": 0, "nsecs": 0},
-            }
-        )
-        self.coordinate_topic.publish(roslibpy_joint_msg)
+    # def publish_arm_jetson(self, joint_pos):
+    #     roslibpy_joint_msg = roslibpy.Message(
+    #         {
+    #             "positions": [
+    #                 float(angle) for angle in joint_pos[:5]
+    #             ],  # 只取前5个关节角度
+    #             "time_from_start": {"secs": 0, "nsecs": 0},
+    #         }
+    #     )
+    #     self.coordinate_topic.publish(roslibpy_joint_msg)
 
     def publish_arm(self, joint_pos):
         msg = JointTrajectoryPoint()
@@ -474,6 +476,12 @@ class AI_node(Node):
         # self.real_car_data["arm_tartget_position"]
         point_as_list = [msg.x, msg.y, msg.z]
         self.real_car_data["arm_tartget_position"] = point_as_list
+
+    def subscriber_object_direction_callback(self, msg):
+        self.real_car_data['object_direction'] = msg.data
+
+
+
 
     def reset_amcl(self):
         reset_pose = PoseWithCovarianceStamped()

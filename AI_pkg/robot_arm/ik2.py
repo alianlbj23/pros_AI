@@ -11,7 +11,7 @@ class pybulletIK:
         self.angle = first_angle
 
         # 初始化 PyBullet 仿真环境
-        p.connect(p.GUI)  # 使用 GUI 模式，这样你可以看到仿真界面
+        p.connect(p.DIRECT)  # 使用 GUI 模式，这样你可以看到仿真界面
         p.setAdditionalSearchPath(
             pybullet_data.getDataPath()
         )  # 设置搜索路径以找到 URDF 文件
@@ -39,7 +39,7 @@ class pybulletIK:
 
         # 初始化相机（固定在第1轴的前方2厘米）
         self.camera_link_index = 2  # 假设第1轴的索引为2
-        self.camera_offset = [0.12, 0, -0.1]  # 相机在该轴前方的偏移量
+        self.camera_offset = [0.08, 0, -0.03]  # 相机在该轴前方的偏移量
         self.camera_orientation = [0, 0, 0, 1]  # 保持相机方向不变（四元数）
 
         # 将红色小球作为深度相机的表示
