@@ -6,10 +6,12 @@ vel, rotate_vel為自走車PID數值, 可於arduino程式碼查看
 於ros_receive_and_data_processing/AI_node.py使用
 """
 vel = 20.0
+vel_slow = 10.0
 rotate_vel = 5.0
 
 ACTION_MAPPINGS = {
     "FORWARD": [vel, vel, vel, vel],  # 前進
+    "FORWARD_SLOW": [vel_slow, vel_slow, vel_slow, vel_slow],  # 前進
     "LEFT_FRONT": [rotate_vel, rotate_vel * 1.2, rotate_vel, rotate_vel * 1.2],  # 左前
     "COUNTERCLOCKWISE_ROTATION": [
         -rotate_vel,

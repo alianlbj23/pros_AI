@@ -148,31 +148,36 @@ class RobotArmControl:
             data = self.node.get_target_pos() # 有時候會出none
             direction = self.node.get_object_direction()
             depth = self.node.get_object_depth()
-            print((depth))
             if depth == None:
                 depth = 100
                 # pass
-            if depth < 0.25 :# 往前抓的
-                print("forward")
-                self.forward_grap()
-                break
-            # #     break  # 当达到目标距离时退出循环
-            # elif depth < 0.3 or data == None:
+            if depth > 0.35 and depth < 99:
+                 action = "FORWARD_SLOW"
+                 self.node.publish_to_robot(action, pid_control=False)
             else:
-                self.adjust_angles_based_on_direction(direction)
-                print(direction)
+                action = "STOP"
+                self.node.publish_to_robot(action, pid_control=False)
+                if depth < 0.25 and direction == "front":# 往前抓的
+                    print("forward")
+                    self.forward_grap()
+                    break
+                # #     break  # 当达到目标距离时退出循环
+                # elif depth < 0.3 or data == None:
+                else:
+                    self.adjust_angles_based_on_direction(direction)
+                    print(direction)
 
-            # else:
-            #     target_coord = data
-            #     target_coord[2] = -0.2 # 先去wsl的pros_AI看高度參考
-            #     # 使用逆运动学计算关节角度
-            #     radians = self.ik_solver.pybullet_move(target_coord, self.current_angle)
-            #     radians = list(radians)
-            #     radians[3] = np.deg2rad(180)
-            #     radians[4] = np.deg2rad(110)
-            #     radians = radians[0:5]
-                # self.perform_linear_interpolation(radians, steps=10)
-            print("no 2 :" + str(depth))
+                # else:
+                #     target_coord = data
+                #     target_coord[2] = -0.2 # 先去wsl的pros_AI看高度參考
+                #     # 使用逆运动学计算关节角度
+                #     radians = self.ik_solver.pybullet_move(target_coord, self.current_angle)
+                #     radians = list(radians)
+                #     radians[3] = np.deg2rad(180)
+                #     radians[4] = np.deg2rad(110)
+                #     radians = radians[0:5]
+                    # self.perform_linear_interpolation(radians, steps=10)
+                print("no 2 :" + str(depth))
 
 # def main(args=None): #
 #     rclpy.init(args=args)
