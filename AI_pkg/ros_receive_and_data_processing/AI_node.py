@@ -494,6 +494,7 @@ class AI_node(Node):
         self.real_car_data['object_direction'] = msg.data
 
     def subscriber_object_depth_callback(self, msg):
+        print(msg.data)
         self.real_car_data['object_depth'] = msg.data
 
 

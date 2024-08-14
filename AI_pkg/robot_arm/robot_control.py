@@ -33,21 +33,33 @@ class RobotArmControl:
         ]
         self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
         self.node.publish_arm(initial_angles)
+        # time.sleep(0.5)
 
     def forward_grap(self):
         new_angles = list(self.arm_radians_angle)
+        time.sleep(2)
         if(new_angles[1] > np.deg2rad(120)):
             self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(50)])
             time.sleep(1)
             print("over")
         else:
-            new_angles[1] += np.deg2rad(20)
-            new_angles[2] -= np.deg2rad(20.2)
+            new_angles[1] += np.deg2rad(40)
+            new_angles[2] -= np.deg2rad(42.5)
             self.arm_radians_angle = new_angles
             self.node.publish_arm(new_angles)
-            time.sleep(1)
+            time.sleep(2)
             self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(50)])
 
+            time.sleep(2)
+            initial_angles = [
+                np.deg2rad(90),
+                np.deg2rad(30),
+                np.deg2rad(160),
+                np.deg2rad(180),
+                np.deg2rad(50)
+            ]
+            self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
+            self.node.publish_arm(initial_angles)
 
 
 
@@ -133,44 +145,47 @@ class RobotArmControl:
         self.initial_action()
 
         while True:
-            data = self.node.get_target_pos()
+            data = self.node.get_target_pos() # 有時候會出none
             direction = self.node.get_object_direction()
             depth = self.node.get_object_depth()
+            print((depth))
             if depth == None:
                 depth = 100
-            if depth < 0.25:
+                # pass
+            if depth < 0.25 :# 往前抓的
                 print("forward")
                 self.forward_grap()
                 break
             # #     break  # 当达到目标距离时退出循环
-            elif depth < 0.3 or data == None:
-            # else:
+            # elif depth < 0.3 or data == None:
+            else:
                 self.adjust_angles_based_on_direction(direction)
                 print(direction)
 
-            else:
-                target_coord = data
-                target_coord[2] = -0.2 # 先去wsl的pros_AI看高度參考
-                # 使用逆运动学计算关节角度
-                radians = self.ik_solver.pybullet_move(target_coord, self.current_angle)
-                radians = list(radians)
-                radians[3] = np.deg2rad(180)
-                radians[4] = np.deg2rad(110)
-                radians = radians[0:5]
-                self.perform_linear_interpolation(radians, steps=10)
+            # else:
+            #     target_coord = data
+            #     target_coord[2] = -0.2 # 先去wsl的pros_AI看高度參考
+            #     # 使用逆运动学计算关节角度
+            #     radians = self.ik_solver.pybullet_move(target_coord, self.current_angle)
+            #     radians = list(radians)
+            #     radians[3] = np.deg2rad(180)
+            #     radians[4] = np.deg2rad(110)
+            #     radians = radians[0:5]
+                # self.perform_linear_interpolation(radians, steps=10)
+            print("no 2 :" + str(depth))
 
-def main(args=None):
-    rclpy.init(args=args)
-    node = rclpy.create_node("robot_arm_control_node")
-    robot_arm_control = RobotArmControl(node)
+# def main(args=None): #
+#     rclpy.init(args=args)
+#     node = rclpy.create_node("robot_arm_control_node")
+#     robot_arm_control = RobotArmControl(node)
 
-    try:
-        robot_arm_control.action()
-    except KeyboardInterrupt:
-        robot_arm_control.end_action()
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+#     try:
+#         robot_arm_control.action()
+#     except KeyboardInterrupt:
+#         robot_arm_control.end_action()
+#     finally:
+#         node.destroy_node()
+#         rclpy.shutdown()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
