@@ -33,7 +33,7 @@ class RobotArmControl:
         ]
         self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
         self.node.publish_arm(initial_angles)
-        # time.sleep(0.5)
+        time.sleep(1)
 
     def forward_grap(self):
         new_angles = list(self.arm_radians_angle)
@@ -61,6 +61,7 @@ class RobotArmControl:
             ]
             self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
             self.node.publish_arm(initial_angles)
+            time.sleep(1)
 
     def put_object(self):
         new_angles = list(self.arm_radians_angle)
@@ -177,7 +178,7 @@ class RobotArmControl:
                 break
             else:
                 self.adjust_angles_based_on_direction(direction)
-
+        time.sleep(1) # yolo 回傳是否看到目標的訊號會延遲
     def grap(self, tag_name):
         self.initial_action()
         self.node.publish_tag_name("None") # 清空用
@@ -200,7 +201,7 @@ class RobotArmControl:
                     self.node.publish_to_robot(action, pid_control=False)
                     time.sleep(2) # 要讓車體穩定
                     self.precision_grap()
-                    if tag_signal == "0":
+                    if tag_signal == "0" and depth == 100:
                         mission_complete = 0
                     # self.node.publish_to_robot(action, pid_control=False)
                     #     if depth < 0.25 and direction == "front":# 往前抓的
