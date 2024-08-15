@@ -114,7 +114,12 @@ def main(mode):
         robot_controler = RobotArmControl(
             node,
         )
-        robot_controler.action()
+        # robot_controler.action()
+        # robot_controler.publish_tag("fire")
+        robot_controler.grap("fire")
+        # robot_controler.put_object()
+        # robot_controler.forward_grap()
+
     # elif mode == "4":
     #     env = gym_env_register(node)
     #     # train_model_PPO(env)

@@ -5,6 +5,7 @@ from geometry_msgs.msg import (
     TransformStamped,
     Point,
 )
+from std_msgs.msg import String
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Path, OccupancyGrid, MapMetaData, Odometry
 import random
@@ -68,6 +69,7 @@ class AI_node(Node):
         # 物體在相機的哪個方向
         self.real_car_data["object_direction"] = None
         self.real_car_data["object_depth"] = None
+        self.real_car_data["tag_exist"] = "0"
         """
         確定以下資料都有收到 才會在 check_and_get_lastest_data() 更新最新資料
         amcl 追蹤車體目前位置
@@ -135,13 +137,20 @@ class AI_node(Node):
             self.subscriber_object_depth_callback,
             10,
         )
+        self.subscriber_tag_exist = self.create_subscription(
+            String,
+            "/tag_exist",
+            self.subscriber_tag_exist_callback,
+            1,
+        )
         """
-        publish map position in random,
+        publish map position ,
         """
         self.publisher_goal_pose = self.create_publisher(PoseStamped, "/goal_pose", 10)
 
         self.publisher_odom = self.create_publisher(Odometry, "/odom", 10)
         self.publisher_scan = self.create_publisher(LaserScan, "/scan", 10)
+        self.publisher_tag_name = self.create_publisher(String, "/tag_name", 10)
         """
         publish給前後的esp32驅動車輪
         """
@@ -231,6 +240,13 @@ class AI_node(Node):
         dict: raw data經過整理的資料
 
     """
+    def publish_tag_name(self, tag_name):
+        msg = String()
+        msg.data = tag_name
+        self.publisher_tag_name.publish(msg)
+
+    def get_tag_exist_signal(self):
+        return self.real_car_data["tag_exist"]
 
     def wait_for_data(self):
         car_state_data = self.get_latest_data()
@@ -503,11 +519,10 @@ class AI_node(Node):
         self.real_car_data['object_direction'] = msg.data
 
     def subscriber_object_depth_callback(self, msg):
-        print(msg.data)
         self.real_car_data['object_depth'] = msg.data
 
-
-
+    def subscriber_tag_exist_callback(self, msg):
+        self.real_car_data["tag_exist"] = msg.data
 
     def reset_amcl(self):
         reset_pose = PoseWithCovarianceStamped()

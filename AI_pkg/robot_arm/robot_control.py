@@ -43,14 +43,15 @@ class RobotArmControl:
             time.sleep(1)
             print("over")
         else:
-            new_angles[1] += np.deg2rad(40)
-            new_angles[2] -= np.deg2rad(42.5)
+            # 改延遲太低會造成來不及動作
+            new_angles[1] += np.deg2rad(50)
+            new_angles[2] -= np.deg2rad(52.5)
             self.arm_radians_angle = new_angles
             self.node.publish_arm(new_angles)
-            time.sleep(2)
+            time.sleep(1)
             self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(50)])
 
-            time.sleep(2)
+            time.sleep(1)
             initial_angles = [
                 np.deg2rad(90),
                 np.deg2rad(30),
@@ -61,6 +62,16 @@ class RobotArmControl:
             self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
             self.node.publish_arm(initial_angles)
 
+    def put_object(self):
+        new_angles = list(self.arm_radians_angle)
+        new_angles[1] += np.deg2rad(40)
+        new_angles[2] -= np.deg2rad(42.5)
+        self.arm_radians_angle = new_angles
+        self.node.publish_arm(new_angles)
+        time.sleep(1)
+        self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(110)])
+        time.sleep(1)
+        self.initial_action()
 
 
     def end_action(self):
@@ -110,7 +121,7 @@ class RobotArmControl:
             # f"Joint 6: {angles_in_degrees[5]:.2f}, "
             # f"Joint 7: {angles_in_degrees[6]:.2f}, "
             # f"Joint 8: {angles_in_degrees[7]:.2f}")
-        time.sleep(0.3)
+        time.sleep(0.5)
 
     def perform_linear_interpolation(self, target_angles, steps=10):
         # 补齐 target_angles 到与 arm_radians_angle 一致的长度
@@ -137,47 +148,102 @@ class RobotArmControl:
         self.arm_radians_angle = target_angles
         time.sleep(1)
 
+    # 讓車子距離物體 0.3 以內
+    def position_adjustment(self):
+        depth = 100
+        depth = self.node.get_object_depth()
+        direction = self.node.get_object_direction()
+        if depth == None:
+            depth = 100
+        if direction == "left":
+            action = "COUNTERCLOCKWISE_ROTATION_SLOW"
+            self.node.publish_to_robot(action, pid_control=False)
+        elif direction == "right":
+            action = "CLOCKWISE_ROTATION_SLOW"
+            self.node.publish_to_robot(action, pid_control=False)
+        else:
+            action = "FORWARD_SLOW"
+            self.node.publish_to_robot(action, pid_control=False)
 
-
-
-    def action(self):
-        print("data receiving")
-        self.initial_action()
-
-        while True:
-            data = self.node.get_target_pos() # 有時候會出none
-            direction = self.node.get_object_direction()
+    def precision_grap(self):
+        action = "STOP"
+        self.node.publish_to_robot(action, pid_control=False)
+        time.sleep(1) # 要讓車體穩定
+        while 1:
             depth = self.node.get_object_depth()
-            if depth == None:
-                depth = 100
-                # pass
-            if depth > 0.35 and depth < 99:
-                 action = "FORWARD_SLOW"
-                 self.node.publish_to_robot(action, pid_control=False)
+            direction = self.node.get_object_direction()
+            if depth < 0.25 and direction == "front":# 往前抓的
+                self.forward_grap()
+                break
             else:
-                action = "STOP"
-                self.node.publish_to_robot(action, pid_control=False)
-                if depth < 0.25 and direction == "front":# 往前抓的
-                    print("forward")
-                    self.forward_grap()
-                    break
-                # #     break  # 当达到目标距离时退出循环
-                # elif depth < 0.3 or data == None:
-                else:
-                    self.adjust_angles_based_on_direction(direction)
-                    print(direction)
+                self.adjust_angles_based_on_direction(direction)
 
-                # else:
-                #     target_coord = data
-                #     target_coord[2] = -0.2 # 先去wsl的pros_AI看高度參考
-                #     # 使用逆运动学计算关节角度
-                #     radians = self.ik_solver.pybullet_move(target_coord, self.current_angle)
-                #     radians = list(radians)
-                #     radians[3] = np.deg2rad(180)
-                #     radians[4] = np.deg2rad(110)
-                #     radians = radians[0:5]
-                    # self.perform_linear_interpolation(radians, steps=10)
-                print("no 2 :" + str(depth))
+
+    def grap(self, tag_name):
+        self.initial_action()
+        self.node.publish_tag_name("None") # 清空用
+        while True:
+            self.node.publish_tag_name(tag_name)
+            tag_signal = self.node.get_tag_exist_signal()
+            if tag_signal != "0":
+                data = self.node.get_target_pos()
+                # direction = self.node.get_object_direction()
+                depth = self.node.get_object_depth()
+                if depth == None:
+                    depth = 100
+                if depth > 0.35:
+                    self.position_adjustment()
+                else:
+                    self.precision_grap()
+                    break
+                    # self.node.publish_to_robot(action, pid_control=False)
+                    #     if depth < 0.25 and direction == "front":# 往前抓的
+                    #         self.forward_grap()
+                    #         break
+                    #     else:
+                    #         self.adjust_angles_based_on_direction(direction)
+            else:
+                action = "COUNTERCLOCKWISE_ROTATION"
+                self.node.publish_to_robot(action, pid_control=False)
+
+    # def action(self):
+    #     print("data receiving")
+    #     self.initial_action()
+    #     # tag_name = self.node.get_tag_name()
+    #     while True:
+    #         data = self.node.get_target_pos() # 有時候會出none
+    #         direction = self.node.get_object_direction()
+    #         depth = self.node.get_object_depth()
+    #         if depth == None:
+    #             depth = 100
+    #             # pass
+    #         if depth > 0.35 and depth < 99:
+    #              action = "FORWARD_SLOW"
+    #              self.node.publish_to_robot(action, pid_control=False)
+    #         else:
+    #             action = "STOP"
+    #             self.node.publish_to_robot(action, pid_control=False)
+    #             if depth < 0.25 and direction == "front":# 往前抓的
+    #                 print("forward")
+    #                 self.forward_grap()
+    #                 break
+    #             # #     break  # 当达到目标距离时退出循环
+    #             # elif depth < 0.3 or data == None:
+    #             else:
+    #                 self.adjust_angles_based_on_direction(direction)
+    #                 # print(direction)
+
+    #             # else:
+    #             #     target_coord = data
+    #             #     target_coord[2] = -0.2 # 先去wsl的pros_AI看高度參考
+    #             #     # 使用逆运动学计算关节角度
+    #             #     radians = self.ik_solver.pybullet_move(target_coord, self.current_angle)
+    #             #     radians = list(radians)
+    #             #     radians[3] = np.deg2rad(180)
+    #             #     radians[4] = np.deg2rad(110)
+    #             #     radians = radians[0:5]
+    #                 # self.perform_linear_interpolation(radians, steps=10)
+    #             print("no 2 :" + str(depth))
 
 # def main(args=None): #
 #     rclpy.init(args=args)
