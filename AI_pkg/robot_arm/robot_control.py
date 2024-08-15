@@ -44,8 +44,8 @@ class RobotArmControl:
             print("over")
         else:
             # 改延遲太低會造成來不及動作
-            new_angles[1] += np.deg2rad(50)
-            new_angles[2] -= np.deg2rad(52.5)
+            new_angles[1] += np.deg2rad(40)
+            new_angles[2] -= np.deg2rad(42.5)
             self.arm_radians_angle = new_angles
             self.node.publish_arm(new_angles)
             time.sleep(1)
@@ -158,17 +158,17 @@ class RobotArmControl:
         if direction == "left":
             action = "COUNTERCLOCKWISE_ROTATION_SLOW"
             self.node.publish_to_robot(action, pid_control=False)
+            time.sleep(0.5)
         elif direction == "right":
             action = "CLOCKWISE_ROTATION_SLOW"
             self.node.publish_to_robot(action, pid_control=False)
+            time.sleep(0.5)
         else:
             action = "FORWARD_SLOW"
             self.node.publish_to_robot(action, pid_control=False)
+            time.sleep(0.5)
 
     def precision_grap(self):
-        action = "STOP"
-        self.node.publish_to_robot(action, pid_control=False)
-        time.sleep(1) # 要讓車體穩定
         while 1:
             depth = self.node.get_object_depth()
             direction = self.node.get_object_direction()
@@ -178,34 +178,47 @@ class RobotArmControl:
             else:
                 self.adjust_angles_based_on_direction(direction)
 
-
     def grap(self, tag_name):
         self.initial_action()
         self.node.publish_tag_name("None") # 清空用
-        while True:
+        mission_complete = 1
+        see_tag_in_moment = 0
+        while mission_complete:
             self.node.publish_tag_name(tag_name)
             tag_signal = self.node.get_tag_exist_signal()
             if tag_signal != "0":
+                see_tag_in_moment += 1
                 data = self.node.get_target_pos()
                 # direction = self.node.get_object_direction()
                 depth = self.node.get_object_depth()
                 if depth == None:
                     depth = 100
-                if depth > 0.35:
+                if depth > 0.34:
                     self.position_adjustment()
                 else:
+                    action = "STOP"
+                    self.node.publish_to_robot(action, pid_control=False)
+                    time.sleep(2) # 要讓車體穩定
                     self.precision_grap()
-                    break
+                    if tag_signal == "0":
+                        mission_complete = 0
                     # self.node.publish_to_robot(action, pid_control=False)
                     #     if depth < 0.25 and direction == "front":# 往前抓的
                     #         self.forward_grap()
                     #         break
                     #     else:
                     #         self.adjust_angles_based_on_direction(direction)
+            # 剛剛有瞄到目標
+            elif see_tag_in_moment > 2:
+                action = "COUNTERCLOCKWISE_ROTATION_SLOW"
+                self.node.publish_to_robot(action, pid_control=False)
+                see_tag_in_moment = 0
             else:
                 action = "COUNTERCLOCKWISE_ROTATION"
                 self.node.publish_to_robot(action, pid_control=False)
-
+                time.sleep(0.1)
+        action = "STOP"
+        self.node.publish_to_robot(action, pid_control=False)
     # def action(self):
     #     print("data receiving")
     #     self.initial_action()
