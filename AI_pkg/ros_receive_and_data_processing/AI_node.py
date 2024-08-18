@@ -548,7 +548,6 @@ class AI_node(Node):
         self.real_car_data["arucode_depth"] = msg.data
 
     def subscriber_arucode_direction_callback(self, msg):
-        print(msg.data)
         self.real_car_data["arucode_direction"] = msg.data
 
     def reset_amcl(self):

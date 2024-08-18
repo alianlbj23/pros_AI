@@ -14,7 +14,7 @@ class RobotArmControl:
             np.deg2rad(40),
             np.deg2rad(160),
             np.deg2rad(180),
-            np.deg2rad(70),
+            np.deg2rad(150),
             0,
             0,
             0,
@@ -23,8 +23,13 @@ class RobotArmControl:
         self.arm_radians_angle = self.current_angle
         self.depth = None
         self.direction = None
-        self.stop_threads_flag = False  # 统一使用一个标志变量来控制所有线程
-
+        self.arucode_depth = None
+        self.stop_threads_flag = False
+        self.arucode_direction = None
+        self.start_depth_monitoring()
+        self.start_direction_monitoring()
+        self.start_arucode_depth_monitoring()
+        self.start_arucode_direction_monitoring()
 
     def degree_to_radians(self, data):
         return list(np.radians(data))
@@ -49,10 +54,33 @@ class RobotArmControl:
         self.direction_thread = threading.Thread(target=monitor_direction)
         self.direction_thread.start()
 
+    def start_arucode_depth_monitoring(self):
+        def monitor_arucode_depth():
+            while not self.stop_threads_flag:
+                self.arucode_depth = self.node.get_arducode_depth_signal()
+                # print("self.arucode_depth  ; ", self.arucode_depth )
+                if self.arucode_depth is None:
+                    self.arucode_depth = 100
+                time.sleep(0.1)
+
+        self.arucode_depth_thread = threading.Thread(target=monitor_arucode_depth)
+        self.arucode_depth_thread.start()
+
+    def start_arucode_direction_monitoring(self):
+        def monitor_arucode_direction():
+            while not self.stop_threads_flag:
+                self.arucode_direction = self.node.get_arducode_direction()
+                time.sleep(0.1)  # 控制 ArUco 方向更新频率
+
+        self.arucode_direction_thread = threading.Thread(target=monitor_arucode_direction)
+        self.arucode_direction_thread.start()
+
     def stop_threads(self):
         self.stop_threads_flag = True
         self.depth_thread.join()
         self.direction_thread.join()
+        self.arucode_depth_thread.join()
+        self.arucode_direction_thread.join()
 
     def initial_action(self):
         initial_angles = [
@@ -60,17 +88,21 @@ class RobotArmControl:
             np.deg2rad(40),
             np.deg2rad(160),
             np.deg2rad(180),
-            np.deg2rad(110)
+            np.deg2rad(150)
         ]
         self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
         print("initial")
         self.node.publish_arm(initial_angles)
         time.sleep(1)
 
-    def forward_grap(self):
+    def forward_grap(self, type):
+        if type == "grap":
+            grap_angle = 5
+        else:
+            grap_angle = 150
         new_angles = list(self.arm_radians_angle)
         if(new_angles[1] > np.deg2rad(120)):
-            self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(5)])
+            self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(grap_angle)])
             time.sleep(1)
             print("over")
         else:
@@ -79,15 +111,15 @@ class RobotArmControl:
             self.arm_radians_angle = new_angles
             self.node.publish_arm(new_angles)
             time.sleep(2)
-            self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(5)])
+            self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(grap_angle)])
 
-            time.sleep(2)
+            time.sleep(1)
             initial_angles = [
                 np.deg2rad(90),
                 np.deg2rad(30),
                 np.deg2rad(160),
                 np.deg2rad(180),
-                np.deg2rad(10)
+                np.deg2rad(grap_angle)
             ]
             self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
             self.node.publish_arm(initial_angles)
@@ -153,11 +185,10 @@ class RobotArmControl:
             self.node.publish_to_robot(action, pid_control=False)
 
     def precision_grap(self):
+        # start_time = time.time()
         while 1:
-            action = "STOP"
-            self.node.publish_to_robot(action, pid_control=False) # 防止夾取時移動
             if self.depth < 0.25 and self.direction == "front":
-                self.forward_grap()
+                self.forward_grap("grap")
                 break
             else:
                 self.adjust_angles_based_on_direction()
@@ -167,8 +198,7 @@ class RobotArmControl:
         self.node.publish_tag_name("None")
         mission_complete = 1
         see_tag_in_moment = 0
-        self.start_depth_monitoring()
-        self.start_direction_monitoring()
+
         while mission_complete:
             self.node.publish_tag_name(tag_name)
             tag_signal = self.node.get_tag_exist_signal()
@@ -184,10 +214,11 @@ class RobotArmControl:
                     self.precision_grap()
                     time.sleep(2) # 等夾具收回判斷
                     print(tag_signal, self.depth)
+                    tag_signal = self.node.get_tag_exist_signal()
                     if tag_signal == "0" or (tag_signal != "0" and self.depth < 0.3) or (tag_signal != "0" and self.depth == 100):
                         print("complete")
                         mission_complete = 0
-                        self.stop_threads()
+                        # self.stop_threads()
                     else:
                         self.initial_action()
             elif see_tag_in_moment > 2:
@@ -199,3 +230,25 @@ class RobotArmControl:
                 self.node.publish_to_robot(action, pid_control=False)
         action = "STOP"
         self.node.publish_to_robot(action, pid_control=False)
+
+    def put_object(self):
+
+        while 1:
+            if self.arucode_depth == 0:
+                action = "COUNTERCLOCKWISE_ROTATION_MEDIAN"
+                self.node.publish_to_robot(action, pid_control=False)
+            elif self.arucode_depth > 0.65:
+                if self.arucode_direction == "left":
+                    action = "COUNTERCLOCKWISE_ROTATION_SLOW"
+                    self.node.publish_to_robot(action, pid_control=False)
+                elif self.arucode_direction == "right":
+                    action = "CLOCKWISE_ROTATION_SLOW"
+                    self.node.publish_to_robot(action, pid_control=False)
+                else:
+                    action = "FORWARD"
+                    self.node.publish_to_robot(action, pid_control=False)
+            else:
+                action = "STOP"
+                self.node.publish_to_robot(action, pid_control=False)
+                self.forward_grap("push")
+                break

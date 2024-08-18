@@ -131,8 +131,11 @@ def main(mode):
         robot_controler = RobotArmControl(
             node,
         )
-        # navigation_controller.nav_to_target(target_position=[2.1771795451685323, 1.2713594312853571])
+        navigation_controller.nav_to_target(target_position=[ 2.266581090709744, 1.2580469126522265])
         robot_controler.grap("fire")
+        navigation_controller.nav_to_target(target_position=[1.930136672132706,  -0.22481190061913692])
+        robot_controler.put_object()
+        robot_controler.stop_threads()
         # navigation_controller.nav_to_target(target_position=[1.8161189408830603, -0.19898427821375453])
     # elif mode == "4":
     #     env = gym_env_register(node)
