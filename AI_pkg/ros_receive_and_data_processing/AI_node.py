@@ -5,13 +5,11 @@ from geometry_msgs.msg import (
     TransformStamped,
     Point,
 )
-from std_msgs.msg import String
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Path, OccupancyGrid, MapMetaData, Odometry
 import random
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Float32, String
 import json
-from std_msgs.msg import String
 import orjson
 import math
 import time
@@ -70,6 +68,9 @@ class AI_node(Node):
         self.real_car_data["object_direction"] = None
         self.real_car_data["object_depth"] = None
         self.real_car_data["tag_exist"] = "0"
+        self.real_car_data["arucode_depth"] = 0
+        self.real_car_data["arucode_direction"] = 0
+        self.real_car_data["plan_pos_orientation"] = []
         """
         確定以下資料都有收到 才會在 check_and_get_lastest_data() 更新最新資料
         amcl 追蹤車體目前位置
@@ -135,13 +136,25 @@ class AI_node(Node):
             String,
             "/object_depth",
             self.subscriber_object_depth_callback,
-            10,
+            1,
         )
         self.subscriber_tag_exist = self.create_subscription(
             String,
             "/tag_exist",
             self.subscriber_tag_exist_callback,
             1,
+        )
+        self.subscriber_arucode_depth = self.create_subscription(
+            Float32,
+            "/arucode_depth",
+            self.subscriber_arucode_depth_callback,
+            1,
+        )
+        self.subscriber_arucode_direction = self.create_subscription(
+            String,
+            "/arucode_direction",
+            self.subscriber_arucode_direction_callback,
+            10,
         )
         """
         publish map position ,
@@ -247,6 +260,12 @@ class AI_node(Node):
 
     def get_tag_exist_signal(self):
         return self.real_car_data["tag_exist"]
+
+    def get_arducode_depth_signal(self):
+        return self.real_car_data["arucode_depth"]
+
+    def get_arducode_direction(self):
+        return self.real_car_data.get("arucode_direction", None)
 
     def wait_for_data(self):
         car_state_data = self.get_latest_data()
@@ -442,6 +461,7 @@ class AI_node(Node):
     """
 
     def global_plan_callback(self, msg):
+        self.real_car_data["plan_pos_orientation"] = [msg.poses[0].pose.orientation.z, msg.poses[0].pose.orientation.w]
         try:
             if len(msg.poses) > 1:
                 current_x, current_y = (
@@ -523,6 +543,13 @@ class AI_node(Node):
 
     def subscriber_tag_exist_callback(self, msg):
         self.real_car_data["tag_exist"] = msg.data
+
+    def subscriber_arucode_depth_callback(self, msg):
+        self.real_car_data["arucode_depth"] = msg.data
+
+    def subscriber_arucode_direction_callback(self, msg):
+        print(msg.data)
+        self.real_car_data["arucode_direction"] = msg.data
 
     def reset_amcl(self):
         reset_pose = PoseWithCovarianceStamped()
@@ -762,6 +789,17 @@ class AI_node(Node):
             return random.choice(free_coordinates)
         else:
             return None
+
+    def publish_goal_pose(self, position):
+        goal_pose = PoseStamped()
+        goal_pose.header = Header()
+        goal_pose.header.stamp = self.get_clock().now().to_msg()
+        goal_pose.header.frame_id = "map"
+        goal_pose.pose.position.x = position[0]
+        goal_pose.pose.position.y = position[1]
+        goal_pose.pose.position.z = 0.0
+        goal_pose.pose.orientation.w = 1.0  # 假設沒有特定的方向需求，設置為默認值
+        self.publisher_goal_pose.publish(goal_pose)
 
     def publisher_random_goal_pose(self):
         (resolution, origin, pgm_file_path) = self.read_yaml_pgm_data()

@@ -1,5 +1,6 @@
 from utils.navigation_utils import calculate_wheel_speeds, action_choice
-from utils.rotate_angle import calculate_angle_to_target
+from utils.rotate_angle import calculate_angle_to_target, get_yaw_from_quaternion
+from utils.obs_utils import cal_distance
 import threading
 from robot_arm.robot_control import RobotArmControl
 from csv_store_and_file.csv_store import DataCollector
@@ -38,8 +39,8 @@ class NavigationProcess:
             print("end")
             action = "STOP"
             # 讓機械手臂動
-            robot_thread = threading.Thread(target=self.robot_action_thread)
-            robot_thread.start()
+            # robot_thread = threading.Thread(target=self.robot_action_thread)
+            # robot_thread.start()
             self.node.publish_to_robot(action, pid_control=False)
             self.flag = 0
 
@@ -55,36 +56,76 @@ class NavigationProcess:
         received_global_plan, car_position, pid_left, pid_right = self.process_car_data(
             car_data
         )
+        # pid_left *= 2
+        # pid_right *= 2
+
         # 接收到 cmd_vel_nav 的訊號，將以下PID數值傳送至車子的PID控制器
-        if stop_signal is not True:
-            self.node.publish_to_robot(
-                [pid_left, pid_right, pid_left, pid_right],
-                pid_control=True,
-            )
+        # distance = cal_distance(car_data['car_pos'], car_data['target_pos'])
+
+
+        # elif stop_signal is not True:
+        #     self.node.publish_to_robot(
+        #         [pid_left, pid_right, pid_left, pid_right],
+        #         pid_control=True,
+        #     )
         # 沒接收到 cmd_vel_nav 訊號，因此改用在 ros_receive_and_data_processing 內 confitg 自訂的 action
+        # else:
+        """
+        因為 received_global_plan 有時會讀取到空值的關係, 若讀取到空值就讓車子停止
+        """
+        if car_data["car_target_distance"] < 0.4:
+            angle_to_target = calculate_angle_to_target(
+                car_data['car_pos'], car_data['target_pos'], car_data["car_quaternion"]
+            )
+            action = action_choice(angle_to_target)
+            self.node.publish_to_robot(action, pid_control=False)
         else:
-            """
-            因為 received_global_plan 有時會讀取到空值的關係, 若讀取到空值就讓車子停止
-            """
-            if received_global_plan == None:
-                action = "STOP"
-                self.node.publish_to_robot(action, pid_control=False)
-            else:
-                """
-                根據車頭面向全域路徑給的路徑距離(config設定的NEXT_POINT_DISTANCE)座標計算角度差，
-                用角度差決定要用什麼動作
-                """
-                angle_to_target = calculate_angle_to_target(
-                    car_position, received_global_plan, car_data["car_quaternion"]
-                )
-                # 目前車子的位置與 nav2 提供的下一個目標點之間的偏離程度，可以用來計算車頭的偏差，從而決定下一步的行動
-                action = action_choice(angle_to_target)
-                self.node.publish_to_robot(action, pid_control=False)
+            try:
+                plan_yaw = get_yaw_from_quaternion(self.node.real_car_data["plan_pos_orientation"][0],self.node.real_car_data["plan_pos_orientation"][1])
+                car_yaw = get_yaw_from_quaternion(car_data["car_quaternion"][0],car_data["car_quaternion"][1])
+                diff_angle = (plan_yaw - car_yaw) % 360.0
+                if diff_angle < 20.0 or (diff_angle > 340 and diff_angle < 360):
+                    action = "FORWARD"
+                    self.node.publish_to_robot(action, pid_control=False)
+                elif diff_angle > 20.0 and diff_angle < 180.0:
+                    action = "COUNTERCLOCKWISE_ROTATION"
+                    self.node.publish_to_robot(action, pid_control=False)
+                elif diff_angle > 180.0 and diff_angle < 340.0:
+                    action = "CLOCKWISE_ROTATION"
+                    self.node.publish_to_robot(action, pid_control=False)
+            except:
+                    print("stop")
+                    action = "STOP"
+                    self.node.publish_to_robot(action, pid_control=False)
+                    # pass
+        # if received_global_plan == None:
+        #     action = "STOP"
+        #     self.node.publish_to_robot(action, pid_control=False)
+        # else:
+        #     """
+        #     根據車頭面向全域路徑給的路徑距離(config設定的NEXT_POINT_DISTANCE)座標計算角度差，
+        #     用角度差決定要用什麼動作
+        #     """
+        #     angle_to_target = calculate_angle_to_target(
+        #         car_position, received_global_plan, car_data["car_quaternion"]
+        #     )
+        #     # 目前車子的位置與 nav2 提供的下一個目標點之間的偏離程度，可以用來計算車頭的偏差，從而決定下一步的行動
+        #     action = action_choice(angle_to_target)
+        #     # self.node.publish_to_robot(action, pid_control=False)
 
     def run(self):
-        car_data = self.node_receive_data()
         # 車子距離終點一定的距離時便判定到達目標
-        if car_data["car_target_distance"] < TARGET_DISTANCE:
-            self.handle_reached_destination()
-        else:
+        car_data = self.node_receive_data()
+        while car_data["car_target_distance"] > TARGET_DISTANCE:
+            car_data = self.node_receive_data()
             self.handle_action(car_data)
+        self.handle_reached_destination()
+
+    def nav_to_target(self, target_position):
+        self.node.publish_goal_pose(target_position)
+        car_data = self.node_receive_data()
+        while car_data["car_target_distance"] > TARGET_DISTANCE:
+            self.node.publish_goal_pose(target_position)
+            car_data = self.node_receive_data()
+            self.handle_action(car_data)
+        self.handle_reached_destination()

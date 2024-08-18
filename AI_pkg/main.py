@@ -5,6 +5,7 @@ from avoidance_rule.rule_base import RuleBasedController
 
 # from car_supervised.lstm_inference import supervised_inference
 from car_navigation.navigation_main import NavigationController
+from car_navigation.navigation_process import NavigationProcess
 from robot_arm.robot_control import RobotArmControl
 
 # RL
@@ -106,20 +107,33 @@ def main(mode):
         )
         rule_controller.run()
     elif mode == "2":
-        navigation_controller = NavigationController(
+        # navigation_controller = NavigationController(
+        #     node,
+        # )
+        navigation_controller = NavigationProcess(
             node,
         )
-        navigation_controller.run()
+        # navigation_controller.run()
+        navigation_controller.nav_to_target(target_position=[2.420953985913655, 1.2143697670578422])
     elif mode == "3":
         robot_controler = RobotArmControl(
             node,
         )
         # robot_controler.action()
         # robot_controler.publish_tag("fire")
-        robot_controler.grap("fire")
-        # robot_controler.put_object()
+        # robot_controler.grap("fire")
+        robot_controler.put_object()
         # robot_controler.forward_grap()
-
+    elif mode == "4":
+        navigation_controller = NavigationProcess(
+            node,
+        )
+        robot_controler = RobotArmControl(
+            node,
+        )
+        # navigation_controller.nav_to_target(target_position=[2.1771795451685323, 1.2713594312853571])
+        robot_controler.grap("fire")
+        # navigation_controller.nav_to_target(target_position=[1.8161189408830603, -0.19898427821375453])
     # elif mode == "4":
     #     env = gym_env_register(node)
     #     # train_model_PPO(env)
@@ -138,7 +152,7 @@ def print_usage():
     # print(" 2 -- supervised learning inference.")
     print(" 2 -- ros2 navigation.")
     print(" 3 -- ros2 arm.")
-    print(" 4 -- RL.")
+    print(" 4 -- Destroy mode.")
 
 
 if __name__ == "__main__":
