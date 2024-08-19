@@ -194,7 +194,7 @@ class RobotArmControl:
                 self.adjust_angles_based_on_direction()
 
 
-    def grap(self, tag_name):
+    def object_grasping(self, tag_name):
         self.initial_action()
         self.node.publish_tag_name("None")
         mission_complete = 1
