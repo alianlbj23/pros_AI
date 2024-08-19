@@ -14,7 +14,7 @@ class RobotArmControl:
             np.deg2rad(40),
             np.deg2rad(160),
             np.deg2rad(180),
-            np.deg2rad(150),
+            np.deg2rad(180),
             0,
             0,
             0,
@@ -88,7 +88,7 @@ class RobotArmControl:
             np.deg2rad(40),
             np.deg2rad(160),
             np.deg2rad(180),
-            np.deg2rad(150)
+            np.deg2rad(180)
         ]
         self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
         print("initial")
@@ -99,7 +99,7 @@ class RobotArmControl:
         if type == "grap":
             grap_angle = 5
         else:
-            grap_angle = 150
+            grap_angle = 180
         new_angles = list(self.arm_radians_angle)
         if(new_angles[1] > np.deg2rad(120)):
             self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(grap_angle)])
@@ -110,7 +110,7 @@ class RobotArmControl:
             new_angles[2] -= np.deg2rad(60.5)
             self.arm_radians_angle = new_angles
             self.node.publish_arm(new_angles)
-            time.sleep(2)
+            time.sleep(1)
             self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(grap_angle)])
 
             time.sleep(1)
@@ -193,6 +193,7 @@ class RobotArmControl:
             else:
                 self.adjust_angles_based_on_direction()
 
+
     def grap(self, tag_name):
         self.initial_action()
         self.node.publish_tag_name("None")
@@ -213,7 +214,11 @@ class RobotArmControl:
                     self.node.publish_to_robot(action, pid_control=False)
                     self.precision_grap()
                     time.sleep(2) # 等夾具收回判斷
-                    print(tag_signal, self.depth)
+                    action = "BACKWARD"
+                    self.node.publish_to_robot(action, pid_control=False)
+                    time.sleep(2)
+                    action = "STOP"
+                    self.node.publish_to_robot(action, pid_control=False)
                     tag_signal = self.node.get_tag_exist_signal()
                     if tag_signal == "0" or (tag_signal != "0" and self.depth < 0.3) or (tag_signal != "0" and self.depth == 100):
                         print("complete")
@@ -237,7 +242,7 @@ class RobotArmControl:
             if self.arucode_depth == 0:
                 action = "COUNTERCLOCKWISE_ROTATION_MEDIAN"
                 self.node.publish_to_robot(action, pid_control=False)
-            elif self.arucode_depth > 0.65:
+            elif self.arucode_depth > 0.8:
                 if self.arucode_direction == "left":
                     action = "COUNTERCLOCKWISE_ROTATION_SLOW"
                     self.node.publish_to_robot(action, pid_control=False)
