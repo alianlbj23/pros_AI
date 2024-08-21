@@ -88,7 +88,7 @@ class RobotArmControl:
             np.deg2rad(40),
             np.deg2rad(160),
             np.deg2rad(180),
-            np.deg2rad(180)
+            np.deg2rad(70)
         ]
         self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
         print("initial")
@@ -99,21 +99,21 @@ class RobotArmControl:
         if type == "grap":
             grap_angle = 5
         else:
-            grap_angle = 180
+            grap_angle = 70
         new_angles = list(self.arm_radians_angle)
         if(new_angles[1] > np.deg2rad(120)):
             self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(grap_angle)])
             time.sleep(1)
             print("over")
         else:
-            new_angles[1] += np.deg2rad(50)
-            new_angles[2] -= np.deg2rad(60.5)
+            new_angles[1] += np.deg2rad(45)
+            new_angles[2] -= np.deg2rad(50.5)
             self.arm_radians_angle = new_angles
             self.node.publish_arm(new_angles)
             time.sleep(1)
             self.node.publish_arm([-1, -1, -1, -1, np.deg2rad(grap_angle)])
 
-            time.sleep(1)
+            time.sleep(2)
             initial_angles = [
                 np.deg2rad(90),
                 np.deg2rad(30),
@@ -125,7 +125,7 @@ class RobotArmControl:
             self.node.publish_arm(initial_angles)
             time.sleep(1)
 
-    def adjust_angles_based_on_direction(self):
+    def adjust_angles_based_on_direction(self, mode):
         adjustment_step = np.deg2rad(2)
         adjustment_step2 = np.deg2rad(3)
         new_angles = list(self.arm_radians_angle)
@@ -145,7 +145,7 @@ class RobotArmControl:
                 new_angles[1] += np.deg2rad(2)
                 if new_angles[1] > np.deg2rad(180):
                     new_angles[1] = np.deg2rad(180)  # 保持在最大值
-        elif self.direction == "front":
+        elif self.direction == "front" and mode == "close":
             new_angles[1] += np.deg2rad(3)
             new_angles[2] -= np.deg2rad(3)
             if new_angles[1] > np.deg2rad(180):
@@ -191,7 +191,7 @@ class RobotArmControl:
                 self.forward_grap("grap")
                 break
             else:
-                self.adjust_angles_based_on_direction()
+                self.adjust_angles_based_on_direction(mode="close")
 
 
     def object_grasping(self, tag_name):
@@ -208,7 +208,7 @@ class RobotArmControl:
                 data = self.node.get_target_pos()
                 if self.depth > 0.3:
                     self.position_adjustment()
-                    self.adjust_angles_based_on_direction()
+                    self.adjust_angles_based_on_direction(mode="unclose")
                 else:
                     action = "STOP"
                     self.node.publish_to_robot(action, pid_control=False)
@@ -220,6 +220,7 @@ class RobotArmControl:
                     action = "STOP"
                     self.node.publish_to_robot(action, pid_control=False)
                     tag_signal = self.node.get_tag_exist_signal()
+                    print("depth tag_signal", self.depth, tag_signal)
                     if tag_signal == "0" or (tag_signal != "0" and self.depth < 0.3) or (tag_signal != "0" and self.depth == 100):
                         print("complete")
                         mission_complete = 0
@@ -236,13 +237,19 @@ class RobotArmControl:
         action = "STOP"
         self.node.publish_to_robot(action, pid_control=False)
 
+    def stop_all_action(self):
+        action = "STOP"
+        self.node.publish_to_robot(action, pid_control=False)
+        self.initial_action()
+
+
     def put_object(self):
 
         while 1:
             if self.arucode_depth == 0:
                 action = "COUNTERCLOCKWISE_ROTATION_MEDIAN"
                 self.node.publish_to_robot(action, pid_control=False)
-            elif self.arucode_depth > 0.8:
+            elif self.arucode_depth > 0.65: # arucode 距離
                 if self.arucode_direction == "left":
                     action = "COUNTERCLOCKWISE_ROTATION_SLOW"
                     self.node.publish_to_robot(action, pid_control=False)
@@ -256,4 +263,7 @@ class RobotArmControl:
                 action = "STOP"
                 self.node.publish_to_robot(action, pid_control=False)
                 self.forward_grap("push")
+                action = "BACKWARD"
+                self.node.publish_to_robot(action, pid_control=False)
+                time.sleep(2)
                 break

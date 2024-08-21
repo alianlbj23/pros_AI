@@ -71,6 +71,9 @@ class AI_node(Node):
         self.real_car_data["arucode_depth"] = 0
         self.real_car_data["arucode_direction"] = 0
         self.real_car_data["plan_pos_orientation"] = []
+        self.real_car_data["last_received_time"] = self.get_clock().now()
+        self.real_car_data["received_global_plan_time"] = 1
+        self.real_car_data["orientation_points"] = None
         """
         確定以下資料都有收到 才會在 check_and_get_lastest_data() 更新最新資料
         amcl 追蹤車體目前位置
@@ -213,9 +216,11 @@ class AI_node(Node):
         """
         received_global_plan
         """
+        # 改成 plan
         self.subscriber_received_global_plan = self.create_subscription(
             Path, "/received_global_plan", self.global_plan_callback, 1
         )
+
 
     """
     檢查所有數據是否更新,
@@ -462,29 +467,66 @@ class AI_node(Node):
 
     def global_plan_callback(self, msg):
         self.real_car_data["plan_pos_orientation"] = [msg.poses[0].pose.orientation.z, msg.poses[0].pose.orientation.w]
-        try:
-            if len(msg.poses) > 1:
-                current_x, current_y = (
-                    self.real_car_data["ROS2CarPosition"][0],
-                    self.real_car_data["ROS2CarPosition"][1],
+        self.real_car_data["last_received_time"] = self.get_clock().now()
+        current_first_point = (msg.poses[0].pose.position.x, msg.poses[0].pose.position.y, msg.poses[0].pose.position.z)
+        path_length = len(msg.poses)
+        orientation_points = []
+        coordinates = []
+        if path_length > 0:
+            last_recorded_point = msg.poses[0].pose.position
+            orientation_points.append((msg.poses[0].pose.orientation.z, msg.poses[0].pose.orientation.w))
+            coordinates.append((msg.poses[0].pose.position.x, msg.poses[0].pose.position.y))
+            for i in range(1, path_length):
+                current_point = msg.poses[i].pose.position
+                distance = math.sqrt(
+                    (current_point.x - last_recorded_point.x) ** 2 +
+                    (current_point.y - last_recorded_point.y) ** 2
                 )
-                #  找出離目前車體 NEXT_POINT_DISTANCE 距離的座標點
-                for i in range(20):
-                    point_x, point_y = (
-                        msg.poses[i].pose.position.x,
-                        msg.poses[i].pose.position.y,
-                    )
-                    distance = math.sqrt(
-                        (point_x - current_x) ** 2 + (point_y - current_y) ** 2
-                    )
-                    if abs(distance - NEXT_POINT_DISTANCE) < 0.01:
-                        break
-                self.real_car_data["received_global_plan"] = [point_x, point_y]
-            else:
-                self.get_logger().info("Global plan does not contain enough points.")
-        except:
-            self.real_car_data["received_global_plan"] = None
+                if distance >= 0.3:
+                    orientation_points.append((msg.poses[i].pose.orientation.z, msg.poses[i].pose.orientation.w))
+                    coordinates.append((current_point.x, current_point.y))
+                    last_recorded_point = current_point
+        self.real_car_data["orientation_points"] = orientation_points
+        self.real_car_data["coordinates"] = coordinates
 
+
+        # try:
+        #     if len(msg.poses) > 1:
+        #         current_x, current_y = (
+        #             self.real_car_data["ROS2CarPosition"][0],
+        #             self.real_car_data["ROS2CarPosition"][1],
+        #         )
+        #         #  找出離目前車體 NEXT_POINT_DISTANCE 距離的座標點
+        #         for i in range(20):
+        #             point_x, point_y = (
+        #                 msg.poses[i].pose.position.x,
+        #                 msg.poses[i].pose.position.y,
+        #             )
+        #             distance = math.sqrt(
+        #                 (point_x - current_x) ** 2 + (point_y - current_y) ** 2
+        #             )
+        #             if abs(distance - NEXT_POINT_DISTANCE) < 0.01:
+        #                 break
+        #         self.real_car_data["received_global_plan"] = [point_x, point_y]
+        #     else:
+        #         self.get_logger().info("Global plan does not contain enough points.")
+        # except:
+        #     self.real_car_data["received_global_plan"] = None
+
+    def check_plan_update(self):
+        current_time = self.get_clock().now()
+        last_received_time = self.real_car_data["last_received_time"]
+
+        if last_received_time is None:
+            return 1
+            self.get_logger().warn("No global plan received yet.")
+        else:
+            time_diff = (current_time - last_received_time).nanoseconds / 1e9  # 轉換為秒
+            if time_diff > 2:  # 假設 5 秒沒有更新
+                self.get_logger().warn("Global plan is not updating.")
+                return 1
+            else:
+                return 0
     """
     在navigation沒送資料時讓車子停止
     """

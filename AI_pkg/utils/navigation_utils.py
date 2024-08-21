@@ -54,13 +54,13 @@ def rpm_to_pid(rpm) -> float:
 
 
 def action_choice(angle_to_target):
-    if abs(angle_to_target) < 20:
+    if abs(angle_to_target) < 30:
         action = "FORWARD"
-    elif 20 < abs(angle_to_target) < 40:
-        if angle_to_target > 0:
-            action = "LEFT_FRONT"
-        elif angle_to_target < 0:
-            action = "RIGHT_FRONT"
+    # elif 20 < abs(angle_to_target) < 40:
+    #     if angle_to_target > 0:
+    #         action = "LEFT_FRONT"
+    #     elif angle_to_target < 0:
+    #         action = "RIGHT_FRONT"
     else:
         if angle_to_target > 0:
             action = "COUNTERCLOCKWISE_ROTATION"

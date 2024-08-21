@@ -44,7 +44,6 @@ from robot_arm.robot_control import RobotArmControl
 #         print("Model not found. Training a new model.")
 #     return model
 
-
 # def load_or_create_model_PPO(env, model_path):
 #     try:
 #         model = PPO.load(model_path)  #  load model
@@ -57,7 +56,6 @@ from robot_arm.robot_control import RobotArmControl
 #         model = PPO("MlpPolicy", env, verbose=1, learning_rate=0.001, device="cuda")
 #         print("Model not found. Training a new model.")
 #     return model
-
 
 # def train_model_PPO(env):
 #     model = load_or_create_model_PPO(
@@ -114,7 +112,9 @@ def main(mode):
             node,
         )
         # navigation_controller.run()
-        navigation_controller.nav_to_target(target_position=[2.420953985913655, 1.2143697670578422])
+        navigation_controller.nav_to_target_plus(target_position=[  1.9762550096385851, 0.3348260662275371])
+        navigation_controller.nav_to_target_plus(target_position=[  2.2328382178946735, -1.1671897513857816])
+        navigation_controller.nav_to_target_plus(target_position=[   -0.02219769945382244, -0.008019708769910538])
     elif mode == "3":
         robot_controler = RobotArmControl(
             node,
@@ -122,7 +122,7 @@ def main(mode):
         # robot_controler.action()
         # robot_controler.publish_tag("fire")
         # robot_controler.grap("fire")
-        robot_controler.put_object()
+        # robot_controler.put_object()
         # robot_controler.forward_grap()
     elif mode == "4":
         navigation_controller = NavigationProcess(
@@ -131,10 +131,26 @@ def main(mode):
         robot_controler = RobotArmControl(
             node,
         )
-        # navigation_controller.nav_to_target(target_position=[ 2.284544356593238, 1.328590034772212])
-        robot_controler.object_grasping("pikachu")
-        # navigation_controller.nav_to_target(target_position=[2.0311789380358385, -0.16980532512815483])
+        navigation_controller.nav_to_target(target_position=[  1.9762550096385851, 0.3348260662275371]) #pokemon
+        # robot_controler.object_grasping("water")
+        navigation_controller.nav_to_target(target_position=[ 2.2328382178946735, -1.1671897513857816]) # arucode position
         # robot_controler.put_object()
+
+        # navigation_controller.nav_to_target(target_position=[1.3708422437463263,  -1.8874063927940004]) # start2
+        # navigation_controller.nav_to_target(target_position=[0.2216050593090444,  -1.7692406054393635]) #pokemon
+        # robot_controler.object_grasping("fire")
+        # navigation_controller.nav_to_target(target_position=[1.3708422437463263,  -1.8874063927940004]) # start2
+        # navigation_controller.nav_to_target(target_position=[ 1.6620495642279993, -1.6739744745747895]) # arucode position
+        # robot_controler.put_object()
+
+        # navigation_controller.nav_to_target(target_position=[1.3322890942816212,  -2.6646953834223135]) # start3
+        # navigation_controller.nav_to_target(target_position=[ 0.37740678749717826,  -2.659768902216764]) # pokemon
+        # robot_controler.object_grasping("green")
+        # navigation_controller.nav_to_target(target_position=[1.3322890942816212,  -2.6646953834223135]) # start3
+        # navigation_controller.nav_to_target(target_position=[ 2.115643965288565, -1.650247959169505]) # arucode position
+        # robot_controler.put_object()
+
+        robot_controler.stop_all_action()
         robot_controler.stop_threads()
         # navigation_controller.nav_to_target(target_position=[1.8161189408830603, -0.19898427821375453])
     # elif mode == "4":

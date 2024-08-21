@@ -7,9 +7,9 @@ vel, rotate_vel為自走車PID數值, 可於arduino程式碼查看
 
 前左、前右、後左、後右
 """
-vel = 20.0
+vel = 30.0
 vel_slow = 7.0
-rotate_vel = 20.0
+rotate_vel = 25.0
 rotate_vel_slow = 8.0
 rotate_vel_median = 10.0
 ACTION_MAPPINGS = {
@@ -69,7 +69,7 @@ NEXT_POINT_DISTANCE : 距離下一個點的距離
 
 於ros_receive_and_data_processing/ros_AI_node.py使用
 """
-NEXT_POINT_DISTANCE = 0.5  # 出現在 AI_node.py
+NEXT_POINT_DISTANCE = 0.01  # 出現在 AI_node.py
 
 """
 TARGET_DISTANCE : 判定為成功到達目標的距離
