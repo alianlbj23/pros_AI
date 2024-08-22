@@ -482,7 +482,7 @@ class AI_node(Node):
                     (current_point.x - last_recorded_point.x) ** 2 +
                     (current_point.y - last_recorded_point.y) ** 2
                 )
-                if distance >= 0.3:
+                if distance >= 0.1:
                     orientation_points.append((msg.poses[i].pose.orientation.z, msg.poses[i].pose.orientation.w))
                     coordinates.append((current_point.x, current_point.y))
                     last_recorded_point = current_point

@@ -61,13 +61,9 @@ class NavigationProcess:
             self.simple_handle_action(car_data)
 
     def simple_handle_action(self, car_data):
-        angle_diff = calculate_angle_point(
-            car_data['car_quaternion'][0], car_data['car_quaternion'][1], car_data['car_pos'], car_data['target_pos']
-        )
-        print("angle_diff : ", angle_diff)
-        action = action_choice(angle_diff)
-        # print("simple action : ", action)
-        # self.node.publish_to_robot(action, pid_control=False)
+        print("simple")
+        action = action_choice(car_data['angle_diff'])
+        self.node.publish_to_robot(action, pid_control=False)
 
     def handle_action_plus(self, car_data):
         orientation_points = self.node.real_car_data.get("orientation_points", None)
@@ -78,43 +74,39 @@ class NavigationProcess:
             self.node.publish_to_robot(action, pid_control=False)
             return
 
-        # 获取当前路径点的数量
         previous_length = len(orientation_points)
 
-        # 遍历所有的 orientation_points
         for i, (z, w) in enumerate(orientation_points):
-            # 检查是否有路径更新
             new_orientation_points = self.node.real_car_data.get("orientation_points", None)
             new_coordinates = self.node.real_car_data.get("coordinates", None)
             current_length = len(new_orientation_points) if new_orientation_points else 0
 
             if new_orientation_points and current_length != previous_length:
-                # 如果路径更新，重新开始遍历新的 orientation_points
                 orientation_points = new_orientation_points
                 coordinates = new_coordinates
                 previous_length = current_length
-                i = 0  # 重新从第一个点开始
+                i = 0
+                continue
 
-            # 将 z 和 w 转换为偏航角度
             plan_yaw = get_yaw_from_quaternion(z, w)
             car_yaw = get_yaw_from_quaternion(car_data["car_quaternion"][0], car_data["car_quaternion"][1])
 
             diff_angle = (plan_yaw - car_yaw) % 360.0
-
-            if diff_angle < 20.0 or (diff_angle > 340 and diff_angle < 360):
+            if diff_angle < 10.0 or (diff_angle > 350 and diff_angle < 360):
                 action = "FORWARD"
-            elif diff_angle > 20.0 and diff_angle < 180.0:
+            elif diff_angle > 10.0 and diff_angle < 180.0:
                 action = "COUNTERCLOCKWISE_ROTATION"
-            elif diff_angle > 180.0 and diff_angle < 340.0:
+            elif diff_angle > 180.0 and diff_angle < 350.0:
                 action = "CLOCKWISE_ROTATION"
             else:
                 action = "STOP"
-
+            if self.node.check_plan_update == 1:
+                if action != "STOP":
+                    action += "_SLOW"
             self.node.publish_to_robot(action, pid_control=False)
 
-            # 检查是否到达当前点，使用 `cal_distance` 计算车与目标点的距离
             current_car_pos = self.node.real_car_data.get("ROS2CarPosition", [0, 0])[:2]
-            distance_to_current_point = cal_distance(current_car_pos, coordinates[i][:2])  # 只使用 x, y 坐标
+            distance_to_current_point = cal_distance(current_car_pos, coordinates[i][:2])
 
             # 如果到达当前路径点，继续处理下一个路径点
             if distance_to_current_point < 0.05:
@@ -231,17 +223,16 @@ class NavigationProcess:
 
     def nav_to_target_plus(self, target_position):
         while True:
-            # self.node.publish_goal_pose(target_position)
-            # car_data = self.node_receive_data()
+            self.node.publish_goal_pose(target_position)
+            car_data = self.node_receive_data()
 
-            self.simple_handle_action(car_data)
+            if car_data["car_target_distance"] > 0.1 and car_data["car_target_distance"] < 0.7:
+                self.simple_handle_action(car_data)
+            else:
+                self.handle_action_plus(car_data)
+            if car_data["car_target_distance"] <= 0.3:
+                break
 
-            # if car_data["car_target_distance"] > TARGET_DISTANCE and car_data["car_target_distance"] < 0.7:
-            #     self.simple_handle_action(car_data)
 
-            # if car_data["car_target_distance"] <= 0.5:
-            #     break
-
-            # self.handle_action_plus(car_data)
 
         self.handle_reached_destination()

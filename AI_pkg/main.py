@@ -112,9 +112,10 @@ def main(mode):
             node,
         )
         # navigation_controller.run()
-        navigation_controller.nav_to_target_plus(target_position=[  1.9762550096385851, 0.3348260662275371])
-        navigation_controller.nav_to_target_plus(target_position=[  2.2328382178946735, -1.1671897513857816])
-        navigation_controller.nav_to_target_plus(target_position=[   -0.02219769945382244, -0.008019708769910538])
+        while 1:
+            navigation_controller.nav_to_target_plus(target_position=[  1.9762550096385851, 0.3348260662275371])
+            navigation_controller.nav_to_target_plus(target_position=[  1.8828640643738286, -1.6112252017559352])
+            navigation_controller.nav_to_target_plus(target_position=[   -0.02219769945382244, -0.008019708769910538])
     elif mode == "3":
         robot_controler = RobotArmControl(
             node,
