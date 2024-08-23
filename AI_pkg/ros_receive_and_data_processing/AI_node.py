@@ -466,7 +466,10 @@ class AI_node(Node):
     """
 
     def global_plan_callback(self, msg):
-        self.real_car_data["plan_pos_orientation"] = [msg.poses[0].pose.orientation.z, msg.poses[0].pose.orientation.w]
+        try:
+            self.real_car_data["plan_pos_orientation"] = [msg.poses[5].pose.orientation.z, msg.poses[5].pose.orientation.w]
+        except:
+            self.real_car_data["plan_pos_orientation"] = [msg.poses[0].pose.orientation.z, msg.poses[0].pose.orientation.w]
         self.real_car_data["last_received_time"] = self.get_clock().now()
         current_first_point = (msg.poses[0].pose.position.x, msg.poses[0].pose.position.y, msg.poses[0].pose.position.z)
         path_length = len(msg.poses)
@@ -522,7 +525,7 @@ class AI_node(Node):
             self.get_logger().warn("No global plan received yet.")
         else:
             time_diff = (current_time - last_received_time).nanoseconds / 1e9  # 轉換為秒
-            if time_diff > 2:  # 假設 5 秒沒有更新
+            if time_diff > 1:  # 假設 5 秒沒有更新
                 self.get_logger().warn("Global plan is not updating.")
                 return 1
             else:

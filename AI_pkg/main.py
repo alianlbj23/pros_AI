@@ -2,7 +2,7 @@ import rclpy
 import threading
 from ros_receive_and_data_processing.AI_node import AI_node
 from avoidance_rule.rule_base import RuleBasedController
-
+import time
 # from car_supervised.lstm_inference import supervised_inference
 from car_navigation.navigation_main import NavigationController
 from car_navigation.navigation_process import NavigationProcess
@@ -125,6 +125,7 @@ def main(mode):
         # robot_controler.grap("fire")
         # robot_controler.put_object()
         # robot_controler.forward_grap()
+        robot_controler.object_depth_test("fire")
     elif mode == "4":
         navigation_controller = NavigationProcess(
             node,
@@ -132,28 +133,51 @@ def main(mode):
         robot_controler = RobotArmControl(
             node,
         )
-        navigation_controller.nav_to_target(target_position=[  1.9762550096385851, 0.3348260662275371]) #pokemon
-        # robot_controler.object_grasping("water")
-        navigation_controller.nav_to_target(target_position=[ 2.2328382178946735, -1.1671897513857816]) # arucode position
-        # robot_controler.put_object()
-
-        # navigation_controller.nav_to_target(target_position=[1.3708422437463263,  -1.8874063927940004]) # start2
-        # navigation_controller.nav_to_target(target_position=[0.2216050593090444,  -1.7692406054393635]) #pokemon
-        # robot_controler.object_grasping("fire")
-        # navigation_controller.nav_to_target(target_position=[1.3708422437463263,  -1.8874063927940004]) # start2
-        # navigation_controller.nav_to_target(target_position=[ 1.6620495642279993, -1.6739744745747895]) # arucode position
-        # robot_controler.put_object()
-
-        # navigation_controller.nav_to_target(target_position=[1.3322890942816212,  -2.6646953834223135]) # start3
-        # navigation_controller.nav_to_target(target_position=[ 0.37740678749717826,  -2.659768902216764]) # pokemon
-        # robot_controler.object_grasping("green")
-        # navigation_controller.nav_to_target(target_position=[1.3322890942816212,  -2.6646953834223135]) # start3
-        # navigation_controller.nav_to_target(target_position=[ 2.115643965288565, -1.650247959169505]) # arucode position
-        # robot_controler.put_object()
+        print("nav to pokemon")
+        navigation_controller.nav_to_target_plus(target_position=[  2.2391839038128727, -0.12556139737959193]) #pokemon
+        time.sleep(0.5)
+        print("find pokemon")
+        robot_controler.object_grasping("water")
+        print("find arucode")
+        navigation_controller.nav_to_target(target_position=[ 2.019325493516968, -1.5822216319989537]) # arucode position
+        time.sleep(0.5)
+        print("put")
+        robot_controler.put_object()
+        print("nav to start2")
+        navigation_controller.nav_to_target(target_position=[1.3317277820213034,  -1.8840259058529047]) # start2
+        time.sleep(0.5)
+        print("nav to pokemon")
+        navigation_controller.nav_to_target(target_position=[0.5835980763708848,  -1.8537946677334118]) #pokemon
+        time.sleep(0.5)
+        print("find pokemon")
+        robot_controler.object_grasping("green")
+        print("nav to start2")
+        navigation_controller.nav_to_target(target_position=[ 1.3317277820213034,  -1.8840259058529047]) # start2
+        time.sleep(0.5)
+        print("find arucode")
+        navigation_controller.nav_to_target(target_position=[ 2.019325493516968, -1.5822216319989537]) # arucode position
+        time.sleep(0.5)
+        print("put")
+        robot_controler.put_object()
+        print("nav to start3")
+        navigation_controller.nav_to_target(target_position=[1.488615114379984,  -2.8043835761561224]) # start3
+        time.sleep(0.5)
+        print("nav to pokemo")
+        navigation_controller.nav_to_target(target_position=[ 0.6382885780318899,  -2.6310892422872243]) # pokemon
+        time.sleep(0.5)
+        print("find pokemon")
+        robot_controler.object_grasping("fire")
+        print("nav to start3")
+        navigation_controller.nav_to_target(target_position=[1.488615114379984,  -2.8043835761561224]) # start3
+        time.sleep(0.5)
+        print("find arucode")
+        navigation_controller.nav_to_target(target_position=[ 2.197981478182996, -1.3664187560239913]) # arucode position
+        time.sleep(0.5)
+        print("put")
+        robot_controler.put_object()
 
         robot_controler.stop_all_action()
         robot_controler.stop_threads()
-        # navigation_controller.nav_to_target(target_position=[1.8161189408830603, -0.19898427821375453])
     # elif mode == "4":
     #     env = gym_env_register(node)
     #     # train_model_PPO(env)

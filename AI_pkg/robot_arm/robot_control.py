@@ -30,6 +30,9 @@ class RobotArmControl:
         self.start_direction_monitoring()
         self.start_arucode_depth_monitoring()
         self.start_arucode_direction_monitoring()
+        self.depth_count = 0
+        self.arucode_depth_count = 0
+        self.action_change_flag = 0
 
     def degree_to_radians(self, data):
         return list(np.radians(data))
@@ -87,7 +90,7 @@ class RobotArmControl:
             np.deg2rad(90),
             np.deg2rad(40),
             np.deg2rad(160),
-            np.deg2rad(180),
+            np.deg2rad(50),
             np.deg2rad(70)
         ]
         self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
@@ -95,9 +98,38 @@ class RobotArmControl:
         self.node.publish_arm(initial_angles)
         time.sleep(1)
 
+    def initial_action_hight(self):
+        initial_angles = [
+            np.deg2rad(90),
+            np.deg2rad(40),
+            np.deg2rad(150),
+            np.deg2rad(50),
+            np.deg2rad(70)
+        ]
+        self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
+        print("initial_hight")
+        self.node.publish_arm(initial_angles)
+        time.sleep(1)
+
+    def initial_action_arucode(self):
+        initial_angles = [
+            np.deg2rad(90),
+            np.deg2rad(30),
+            np.deg2rad(160),
+            np.deg2rad(50),
+            np.deg2rad(10)
+        ]
+        self.arm_radians_angle = initial_angles  # 更新当前角度为初始动作角度
+        print("initial")
+        action = "STOP"
+        for i in range(2):
+            self.node.publish_arm(initial_angles)
+            self.node.publish_to_robot(action, pid_control=False)
+        time.sleep(1)
+
     def forward_grap(self, type):
         if type == "grap":
-            grap_angle = 5
+            grap_angle = 10
         else:
             grap_angle = 70
         new_angles = list(self.arm_radians_angle)
@@ -106,8 +138,8 @@ class RobotArmControl:
             time.sleep(1)
             print("over")
         else:
-            new_angles[1] += np.deg2rad(45)
-            new_angles[2] -= np.deg2rad(50.5)
+            new_angles[1] += np.deg2rad(35)
+            new_angles[2] -= np.deg2rad(40.5)
             self.arm_radians_angle = new_angles
             self.node.publish_arm(new_angles)
             time.sleep(1)
@@ -193,63 +225,87 @@ class RobotArmControl:
             else:
                 self.adjust_angles_based_on_direction(mode="close")
 
+    def object_depth_test(self, tag_name):
+        while 1:
+            self.node.publish_tag_name(tag_name)
+            print(self.depth)
 
     def object_grasping(self, tag_name):
         self.initial_action()
         self.node.publish_tag_name("None")
         mission_complete = 1
         see_tag_in_moment = 0
+        start_time = time.time()
 
         while mission_complete:
             self.node.publish_tag_name(tag_name)
             tag_signal = self.node.get_tag_exist_signal()
+
             if tag_signal != "0":
                 see_tag_in_moment += 1
+                start_time = time.time()  # 重置计时器
                 data = self.node.get_target_pos()
-                if self.depth > 0.3:
+                self.depth_count += 1
+                if self.depth > 0.35:
+                    self.depth_count = 0
                     self.position_adjustment()
                     self.adjust_angles_based_on_direction(mode="unclose")
-                else:
-                    action = "STOP"
-                    self.node.publish_to_robot(action, pid_control=False)
-                    self.precision_grap()
-                    time.sleep(2) # 等夾具收回判斷
-                    action = "BACKWARD"
-                    self.node.publish_to_robot(action, pid_control=False)
-                    time.sleep(2)
-                    action = "STOP"
-                    self.node.publish_to_robot(action, pid_control=False)
-                    tag_signal = self.node.get_tag_exist_signal()
-                    print("depth tag_signal", self.depth, tag_signal)
-                    if tag_signal == "0" or (tag_signal != "0" and self.depth < 0.3) or (tag_signal != "0" and self.depth == 100):
-                        print("complete")
-                        mission_complete = 0
-                        # self.stop_threads()
-                    else:
-                        self.initial_action()
-            elif see_tag_in_moment > 2:
-                action = "STOP"
-                self.node.publish_to_robot(action, pid_control=False)
-                see_tag_in_moment = 0
+
+                if self.depth < 0.35:
+                    self.stop_car()
+                    if self.depth < 0.35:
+                        self.precision_grap()
+                        time.sleep(2)  # 等夾具收回判斷
+                        action = "BACKWARD"
+                        self.node.publish_to_robot(action, pid_control=False)
+                        time.sleep(2)
+                        self.stop_car()
+                        tag_signal = self.node.get_tag_exist_signal()
+                        print("depth tag_signal", self.depth, tag_signal)
+                        if tag_signal == "0" or (tag_signal != "0" and self.depth < 0.3) or (tag_signal != "0" and self.depth == 100):
+                            print("complete")
+                            mission_complete = 0
+                        else:
+                            self.initial_action()
+            # elif see_tag_in_moment > 2:
+            #     self.stop_car()
+            #     see_tag_in_moment = 0
             else:
                 action = "COUNTERCLOCKWISE_ROTATION_MEDIAN"
                 self.node.publish_to_robot(action, pid_control=False)
-        action = "STOP"
-        self.node.publish_to_robot(action, pid_control=False)
+
+            # Check if 10 seconds have passed without seeing the object
+            # if time.time() - start_time > 10:
+            #     if self.action_change_flag == 0:
+            #         self.initial_action_hight()
+            #     else:
+            #         self.initial_action()
+            #     self.action_change_flag = not self.action_change_flag
+            #     start_time = time.time()  # 重置计时器
+
+        self.stop_car()
 
     def stop_all_action(self):
         action = "STOP"
         self.node.publish_to_robot(action, pid_control=False)
         self.initial_action()
 
+    def stop_car(self):
+        for i in range(50):
+            action = "STOP"
+            self.node.publish_to_robot(action, pid_control=False)
+        time.sleep(1)
 
     def put_object(self):
-
+        self.initial_action_arucode()
         while 1:
+            self.arucode_depth_count += 1
             if self.arucode_depth == 0:
+                self.arucode_depth_count = 0
                 action = "COUNTERCLOCKWISE_ROTATION_MEDIAN"
                 self.node.publish_to_robot(action, pid_control=False)
             elif self.arucode_depth > 0.65: # arucode 距離
+                self.arucode_depth_count = 0
                 if self.arucode_direction == "left":
                     action = "COUNTERCLOCKWISE_ROTATION_SLOW"
                     self.node.publish_to_robot(action, pid_control=False)
@@ -257,13 +313,28 @@ class RobotArmControl:
                     action = "CLOCKWISE_ROTATION_SLOW"
                     self.node.publish_to_robot(action, pid_control=False)
                 else:
-                    action = "FORWARD"
+                    action = "FORWARD_SLOW"
                     self.node.publish_to_robot(action, pid_control=False)
-            else:
-                action = "STOP"
-                self.node.publish_to_robot(action, pid_control=False)
-                self.forward_grap("push")
-                action = "BACKWARD"
-                self.node.publish_to_robot(action, pid_control=False)
-                time.sleep(2)
-                break
+                print("arucode action : ", action)
+            elif self.arucode_depth_count >= 2:
+                # action = "STOP"
+                # self.node.publish_to_robot(action, pid_control=False)
+                print("arucode depth : ", self.arucode_depth)
+                self.stop_car()
+
+                if self.arucode_direction != "front":
+                    if self.arucode_direction == "left":
+                        action = "COUNTERCLOCKWISE_ROTATION"
+                        self.node.publish_to_robot(action, pid_control=False)
+                    elif self.arucode_direction == "right":
+                        action = "CLOCKWISE_ROTATION"
+                        self.node.publish_to_robot(action, pid_control=False)
+                    print("aru action : ", action)
+                elif self.arucode_depth < 0.65:
+                    self.stop_car()
+                    self.forward_grap("push")
+                    action = "BACKWARD"
+                    self.node.publish_to_robot(action, pid_control=False)
+                    time.sleep(2.5)
+                    self.stop_car()
+                    break

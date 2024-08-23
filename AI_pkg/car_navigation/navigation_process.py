@@ -36,11 +36,12 @@ class NavigationProcess:
     # 到達終點時要做的事
     def handle_reached_destination(self):
         print("end")
-        action = "STOP"
-        # 讓機械手臂動
-        # robot_thread = threading.Thread(target=self.robot_action_thread)
-        # robot_thread.start()
-        self.node.publish_to_robot(action, pid_control=False)
+        for i in range(50):
+            action = "STOP"
+            # 讓機械手臂動
+            # robot_thread = threading.Thread(target=self.robot_action_thread)
+            # robot_thread.start()
+            self.node.publish_to_robot(action, pid_control=False)
 
     def rule(self, car_data, safe_distance):
         obstacle_near = any(lidar < safe_distance for lidar in car_data["lidar_data"])
@@ -61,7 +62,6 @@ class NavigationProcess:
             self.simple_handle_action(car_data)
 
     def simple_handle_action(self, car_data):
-        print("simple")
         action = action_choice(car_data['angle_diff'])
         self.node.publish_to_robot(action, pid_control=False)
 
@@ -70,8 +70,9 @@ class NavigationProcess:
         coordinates = self.node.real_car_data.get("coordinates", None)
 
         if not orientation_points or not coordinates:
-            action = "STOP"
-            self.node.publish_to_robot(action, pid_control=False)
+            for i in range(50):
+                action = "STOP"
+                self.node.publish_to_robot(action, pid_control=False)
             return
 
         previous_length = len(orientation_points)
@@ -157,9 +158,14 @@ class NavigationProcess:
         #     action = "STOP"
         #     self.node.publish_to_robot(action, pid_control=False)
         # else:
-        if car_data["car_target_distance"] > 0.1 and car_data["car_target_distance"] < 0.5:
-            print("into simple mode")
-            self.simple_handle_action(car_data)
+        # if car_data["car_target_distance"] > 0.1 and car_data["car_target_distance"] < 0.5:
+        #     print("into simple mode")
+        #     self.simple_handle_action(car_data)
+        # else:
+        if self.node.check_plan_update() == 1:
+            for i in range(10):
+                action = "STOP"
+                self.node.publish_to_robot(action, pid_control=False)
         else:
             try:
                 plan_yaw = get_yaw_from_quaternion(self.node.real_car_data["plan_pos_orientation"][0],self.node.real_car_data["plan_pos_orientation"][1])
@@ -177,22 +183,23 @@ class NavigationProcess:
                     self.node.publish_to_robot(action, pid_control=False)
             except:
                     # print("stop")
-                    action = "STOP"
-                    self.node.publish_to_robot(action, pid_control=False)
-        # if received_global_plan == None:
-        #     action = "STOP"
-        #     self.node.publish_to_robot(action, pid_control=False)
-        # else:
-        #     """
-        #     根據車頭面向全域路徑給的路徑距離(config設定的NEXT_POINT_DISTANCE)座標計算角度差，
-        #     用角度差決定要用什麼動作
-        #     """
-        #     angle_to_target = calculate_angle_to_target(
-        #         car_position, received_global_plan, car_data["car_quaternion"]
-        #     )
-        #     # 目前車子的位置與 nav2 提供的下一個目標點之間的偏離程度，可以用來計算車頭的偏差，從而決定下一步的行動
-        #     action = action_choice(angle_to_target)
-        #     # self.node.publish_to_robot(action, pid_control=False)
+                    for i in range(10):
+                        action = "STOP"
+                        self.node.publish_to_robot(action, pid_control=False)
+            # if received_global_plan == None:
+            #     action = "STOP"
+            #     self.node.publish_to_robot(action, pid_control=False)
+            # else:
+            #     """
+            #     根據車頭面向全域路徑給的路徑距離(config設定的NEXT_POINT_DISTANCE)座標計算角度差，
+            #     用角度差決定要用什麼動作
+            #     """
+            #     angle_to_target = calculate_angle_to_target(
+            #         car_position, received_global_plan, car_data["car_quaternion"]
+            #     )
+            #     # 目前車子的位置與 nav2 提供的下一個目標點之間的偏離程度，可以用來計算車頭的偏差，從而決定下一步的行動
+            #     action = action_choice(angle_to_target)
+            #     # self.node.publish_to_robot(action, pid_control=False)
 
     def run(self):
         # 車子距離終點一定的距離時便判定到達目標
@@ -205,11 +212,7 @@ class NavigationProcess:
     def nav_to_target(self, target_position):
         self.node.publish_goal_pose(target_position)
         car_data = self.node_receive_data()
-        while car_data["car_target_distance"] > TARGET_DISTANCE:
-            random_number = round(random.uniform(0.00, 1.00), 3) / 10.0
-            # print(random_number)
-            target_position[0] += random_number
-            target_position[1] += random_number
+        while car_data["car_target_distance"] > 0.5:
             self.node.publish_goal_pose(target_position)
             car_data = self.node_receive_data()
             self.handle_action(car_data)
@@ -226,13 +229,10 @@ class NavigationProcess:
             self.node.publish_goal_pose(target_position)
             car_data = self.node_receive_data()
 
-            if car_data["car_target_distance"] > 0.1 and car_data["car_target_distance"] < 0.7:
-                self.simple_handle_action(car_data)
-            else:
-                self.handle_action_plus(car_data)
-            if car_data["car_target_distance"] <= 0.3:
+            # if car_data["car_target_distance"] > 0.1 and car_data["car_target_distance"] < 0.7:
+            #     self.simple_handle_action(car_data)
+            # else:
+            self.handle_action_plus(car_data)
+            if car_data["car_target_distance"] <= 0.5:
                 break
-
-
-
         self.handle_reached_destination()
